@@ -6,7 +6,7 @@
 
 /***********************************************************************************
  *
- * Copyright (c) 2012 Louka Desroziers
+ * Copyright (c) 2012 Novedia Regions
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -80,35 +80,13 @@ static CGSize const kNRGridViewDefaultCellSize = {50, 70};
     NSMutableSet    *_reusableCellsSet;
     NSMutableSet    *_visibleCellsSet;
     NRGridViewCell  *_highlightedCell, *_longPressuredCell;
-    NSMutableArray  *_selectedCellsIndexPaths;
-    
-    struct {
-        unsigned int willDisplayCell:1;  
-        unsigned int willSelectCell:1;  
-        unsigned int didSelectCell:1;  
-        unsigned int didLongPressCell:1;  
-        unsigned int didSelectHeader:1;  
-    } _gridViewDelegateRespondsTo;
-    
-    struct {
-        unsigned int numberOfSections:1;  
-        unsigned int titleForHeader:1;  
-        unsigned int viewForHeader:1;  
-        unsigned int heightForHeader:1;  
-        unsigned int widthForHeader:1;  
-        unsigned int titleForFooter:1;  
-        unsigned int viewForFooter:1;  
-        unsigned int heightForFooter:1;  
-        unsigned int widthForFooter:1;
-        unsigned int hasTranslucentNavigationBar:1;
-    } _gridViewDataSourceRespondsTo;
 }
 
 - (id)initWithLayoutStyle:(NRGridViewLayoutStyle)layoutStyle;
 @property (nonatomic, assign) NRGridViewLayoutStyle layoutStyle;
 
-@property (nonatomic, assign) IBOutlet id<NRGridViewDelegate> delegate;
-@property (nonatomic, assign) IBOutlet id<NRGridViewDataSource> dataSource;
+@property (nonatomic, assign) id<NRGridViewDelegate> delegate;
+@property (nonatomic, assign) id<NRGridViewDataSource> dataSource;
 
 /** Determines the size of every cells passed into the gridView. Default value is kNRGridViewDefaultCellSize */
 @property (nonatomic, assign) CGSize cellSize;
@@ -122,18 +100,7 @@ static CGSize const kNRGridViewDefaultCellSize = {50, 70};
 - (NRGridViewCell*)cellAtIndexPath:(NSIndexPath*)indexPath; // returns nil if cell is not visible.
 
 /** Handling (de)selection */
-@property (nonatomic, retain)       NSIndexPath *selectedCellIndexPath __attribute__ ((deprecated));
-
-@property (nonatomic, assign)       BOOL        allowsMultipleSelections;
-
-/** Returns the indexPath for the selected cell. 
- * @discussion If the gridView is allowed to perform multiple selections, the latest selected indexPath is returned.
- */
-- (NSIndexPath *)indexPathForSelectedCell;
-
-/** Returns the indexPaths for selected cells. */
-- (NSArray *)indexPathsForSelectedCells;
-
+@property (nonatomic, retain)   NSIndexPath *selectedCellIndexPath;
 
 - (void)selectCellAtIndexPath:(NSIndexPath*)indexPath 
                      animated:(BOOL)animated;
@@ -144,7 +111,6 @@ static CGSize const kNRGridViewDefaultCellSize = {50, 70};
 
 - (void)deselectCellAtIndexPath:(NSIndexPath*)indexPath 
                        animated:(BOOL)animated;
-
 
 
 /** Getting rects, and scroll to specific section/indexPath */

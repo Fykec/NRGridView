@@ -32,6 +32,12 @@
 		17BF815A14E1B43B00F109BE /* NRGridViewDelegate.h in Headers */ = {isa = PBXBuildFile; fileRef = 17BF815214E1B43B00F109BE /* NRGridViewDelegate.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		17BF815E14E1B44800F109BE /* NRGridViewController.h in Headers */ = {isa = PBXBuildFile; fileRef = 17BF815C14E1B44800F109BE /* NRGridViewController.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		17BF815F14E1B44800F109BE /* NRGridViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 17BF815D14E1B44800F109BE /* NRGridViewController.m */; };
+		9C985A0D158EFB28006AE186 /* NRAlertView.h in Headers */ = {isa = PBXBuildFile; fileRef = 9C985A07158EFB28006AE186 /* NRAlertView.h */; };
+		9C985A0E158EFB28006AE186 /* NRAlertView.m in Sources */ = {isa = PBXBuildFile; fileRef = 9C985A08158EFB28006AE186 /* NRAlertView.m */; };
+		9C985A0F158EFB28006AE186 /* NRAlertViewButton.h in Headers */ = {isa = PBXBuildFile; fileRef = 9C985A09158EFB28006AE186 /* NRAlertViewButton.h */; };
+		9C985A10158EFB28006AE186 /* NRAlertViewButton.m in Sources */ = {isa = PBXBuildFile; fileRef = 9C985A0A158EFB28006AE186 /* NRAlertViewButton.m */; };
+		9C985A11158EFB28006AE186 /* NRAlertViewDataSource.h in Headers */ = {isa = PBXBuildFile; fileRef = 9C985A0B158EFB28006AE186 /* NRAlertViewDataSource.h */; };
+		9C985A12158EFB28006AE186 /* NRAlertViewDelegate.h in Headers */ = {isa = PBXBuildFile; fileRef = 9C985A0C158EFB28006AE186 /* NRAlertViewDelegate.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +53,12 @@
 		17BF815214E1B43B00F109BE /* NRGridViewDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NRGridViewDelegate.h; sourceTree = "<group>"; };
 		17BF815C14E1B44800F109BE /* NRGridViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NRGridViewController.h; sourceTree = "<group>"; };
 		17BF815D14E1B44800F109BE /* NRGridViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NRGridViewController.m; sourceTree = "<group>"; };
+		9C985A07158EFB28006AE186 /* NRAlertView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NRAlertView.h; sourceTree = "<group>"; };
+		9C985A08158EFB28006AE186 /* NRAlertView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NRAlertView.m; sourceTree = "<group>"; };
+		9C985A09158EFB28006AE186 /* NRAlertViewButton.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NRAlertViewButton.h; sourceTree = "<group>"; };
+		9C985A0A158EFB28006AE186 /* NRAlertViewButton.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NRAlertViewButton.m; sourceTree = "<group>"; };
+		9C985A0B158EFB28006AE186 /* NRAlertViewDataSource.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NRAlertViewDataSource.h; sourceTree = "<group>"; };
+		9C985A0C158EFB28006AE186 /* NRAlertViewDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NRAlertViewDelegate.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +109,12 @@
 				17BF815114E1B43B00F109BE /* NRGridViewDataSource.h */,
 				17BF815214E1B43B00F109BE /* NRGridViewDelegate.h */,
 				17BF814B14E1B43B00F109BE /* NRGridConstants.h */,
+				9C985A07158EFB28006AE186 /* NRAlertView.h */,
+				9C985A08158EFB28006AE186 /* NRAlertView.m */,
+				9C985A09158EFB28006AE186 /* NRAlertViewButton.h */,
+				9C985A0A158EFB28006AE186 /* NRAlertViewButton.m */,
+				9C985A0B158EFB28006AE186 /* NRAlertViewDataSource.h */,
+				9C985A0C158EFB28006AE186 /* NRAlertViewDelegate.h */,
 				17BF814C14E1B43B00F109BE /* NRGridView-Prefix.pch */,
 			);
 			path = NRGridView;
@@ -125,6 +143,10 @@
 				17BF815E14E1B44800F109BE /* NRGridViewController.h in Headers */,
 				17BF815314E1B43B00F109BE /* NRGridConstants.h in Headers */,
 				17BF815414E1B43B00F109BE /* NRGridView-Prefix.pch in Headers */,
+				9C985A0D158EFB28006AE186 /* NRAlertView.h in Headers */,
+				9C985A0F158EFB28006AE186 /* NRAlertViewButton.h in Headers */,
+				9C985A11158EFB28006AE186 /* NRAlertViewDataSource.h in Headers */,
+				9C985A12158EFB28006AE186 /* NRAlertViewDelegate.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -199,6 +221,8 @@
 				17BF815614E1B43B00F109BE /* NRGridView.m in Sources */,
 				17BF815814E1B43B00F109BE /* NRGridViewCell.m in Sources */,
 				17BF815F14E1B44800F109BE /* NRGridViewController.m in Sources */,
+				9C985A0E158EFB28006AE186 /* NRAlertView.m in Sources */,
+				9C985A10158EFB28006AE186 /* NRAlertViewButton.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

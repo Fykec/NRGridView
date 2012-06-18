@@ -5,7 +5,7 @@
 
 /***********************************************************************************
  *
- * Copyright (c) 2012 Louka Desroziers
+ * Copyright (c) 2012 Novedia Regions
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,28 +37,46 @@
 @class NRGridView, NRGridViewCell;
 @protocol NRGridViewDataSource <NSObject>
 
-- (NSInteger)gridView:(NRGridView*)gridView numberOfItemsInSection:(NSInteger)section;
-- (NRGridViewCell*)gridView:(NRGridView*)gridView cellForItemAtIndexPath:(NSIndexPath*)indexPath;
+
+- (NSInteger)NRGridView:(NRGridView*)gridView numberOfItemsInSection:(NSInteger)section;
+- (NRGridViewCell*)NRGridView:(NRGridView*)gridView cellForItemAtIndexPath:(NSIndexPath*)indexPath;
 
 
 @optional
 
-- (NSInteger)numberOfSectionsInGridView:(NRGridView*)gridView; // no implementation = 1 section
+- (NSInteger)numberOfSectionsInNRGridView:(NRGridView*)gridView; // no implementation = 1 section
 
-- (NSString*)gridView:(NRGridView*)gridView titleForHeaderInSection:(NSInteger)section;
-- (UIView*)gridView:(NRGridView*)gridView viewForHeaderInSection:(NSInteger)section;
+- (NSString*)NRGridView:(NRGridView*)gridView titleForHeaderInSection:(NSInteger)section;
+- (UIView*)NRGridView:(NRGridView*)gridView viewForHeaderInSection:(NSInteger)section;
 /** If implemented, this method is called if the layout style of the grid view is vertical */
-- (CGFloat)gridView:(NRGridView*)gridView heightForHeaderInSection:(NSInteger)section;
+- (CGFloat)NRGridView:(NRGridView*)gridView heightForHeaderInSection:(NSInteger)section;
 /** If implemented, this method is called if the layout style of the grid view is horizontal */
-- (CGFloat)gridView:(NRGridView*)gridView widthForHeaderInSection:(NSInteger)section;
+- (CGFloat)NRGridView:(NRGridView*)gridView widthForHeaderInSection:(NSInteger)section;
 
 
-- (NSString*)gridView:(NRGridView*)gridView titleForFooterInSection:(NSInteger)section;
-- (UIView*)gridView:(NRGridView*)gridView viewForFooterInSection:(NSInteger)section;
+- (NSString*)NRGridView:(NRGridView*)gridView titleForFooterInSection:(NSInteger)section;
+
+- (UIView*)NRGridView:(NRGridView*)gridView viewForFooterInSection:(NSInteger)section;
 /** If implemented, this method is called if the layout style of the grid view is vertical */
-- (CGFloat)gridView:(NRGridView*)gridView heightForFooterInSection:(NSInteger)section;
+- (CGFloat)NRGridView:(NRGridView*)gridView heightForFooterInSection:(NSInteger)section;
 /** If implemented, this method is called if the layout style of the grid view is horizontal */
-- (CGFloat)gridView:(NRGridView*)gridView widthForFooterInSection:(NSInteger)section;
+- (CGFloat)NRGridView:(NRGridView*)gridView widthForFooterInSection:(NSInteger)section;
 
+/** Seperator view */
+- (UIView*)NRGridView:(NRGridView*)gridView verticalSeperatorForItemAtIndexPath:(NSIndexPath*)indexPath;
+
+- (CGFloat)NRGridView:(NRGridView*)gridView verticalSeperatorHeightForItemAtIndexPath:(NSIndexPath*)indexPath;
+
+- (CGFloat)NRGridView:(NRGridView*)gridView verticalSeperatorWidthForItemAtIndexPath:(NSIndexPath*)indexPath;
+
+- (BOOL)NRGridView:(NRGridView*)gridView hasLastVerticalSeperatorInSection:(NSInteger)section;
+
+- (UIView*)NRGridView:(NRGridView*)gridView horizontalSeperatorForItemAtIndexPath:(NSIndexPath*)indexPath;
+
+- (CGFloat)NRGridView:(NRGridView*)gridView horizontalSeperatorHeightForItemAtIndexPath:(NSIndexPath*)indexPath;
+
+- (CGFloat)NRGridView:(NRGridView*)gridView horizontalSeperatorWidthForItemAtIndexPath:(NSIndexPath*)indexPath;
+
+- (BOOL)NRGridView:(NRGridView*)gridView hasLastHorizontalSeperatorInSection:(NSInteger)section;
 
 @end

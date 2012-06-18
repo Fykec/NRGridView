@@ -6,7 +6,7 @@
 
 /***********************************************************************************
  *
- * Copyright (c) 2012 Louka Desroziers
+ * Copyright (c) 2012 Novedia Regions
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -146,12 +146,21 @@ static CGFloat const _kNRGridViewHeaderContentPadding = 10.;
 @end
 /** **/
 
-static NSString* const _kNRGridViewCellIndexPathKey = @"_indexPath";
+static NSString* _kNRGridViewCellIndexPathKey = nil;
 @interface NRGridViewCell (NRGridViewCellIndexPathExtension)
 - (void)__setIndexPath:(NSIndexPath*)indexPath;
 - (NSIndexPath*)__indexPath;
 @end
 @implementation NRGridViewCell (NRGridViewCellIndexPathExtension)
+
++(void)initialize
+{
+    if(_kNRGridViewCellIndexPathKey == nil)
+    {
+        _kNRGridViewCellIndexPathKey = [[NSString stringWithFormat:@"%@%@", @"_inde", @"xPath"] retain];
+    }
+}
+
 - (void)__setIndexPath:(NSIndexPath*)indexPath
 {
     objc_setAssociatedObject(self, 
@@ -233,7 +242,7 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 - (void)__throwCellInReusableQueue:(NRGridViewCell*)cell;
 
 - (void)__layoutCellsWithLayoutStyle:(NRGridViewLayoutStyle)layoutStyle
-       alreadyVisibleCellsIndexPaths:(NSArray*)alreadyVisibleCellsIndexPaths;
+              visibleCellsIndexPaths:(NSArray*)visibleCellsIndexPaths;
 
 
 @property (nonatomic, retain) UITapGestureRecognizer *tapGestureRecognizer;
@@ -248,16 +257,14 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 @synthesize tapGestureRecognizer = _tapGestureRecognizer;
 @synthesize longPressGestureRecognizer = _longPressGestureRecognizer;
 
-@dynamic delegate; // Dynamic because inherited from UIScrollView's delegate property.
-
 @synthesize layoutStyle = _layoutStyle;
 @synthesize dataSource = _dataSource;
+@synthesize delegate;
 @synthesize cellSize = _cellSize;
+@synthesize selectedCellIndexPath = _selectedCellIndexPath;
 @synthesize longPressOptions = _longPressOptions;
 
 @dynamic visibleCells, indexPathsForVisibleCells;
-@dynamic selectedCellIndexPath/**Deprecated*/;
-@synthesize allowsMultipleSelections   = _allowsMultipleSelections;
 
 #pragma mark - Init
 
@@ -267,7 +274,6 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     _reusableCellsSet = [[NSMutableSet alloc] init];
     
     [self setBackgroundColor:[UIColor whiteColor]];
-    [self setAlwaysBounceVertical:YES];
     [self setLayoutStyle:NRGridViewLayoutStyleVertical];
     [self setCellSize:kNRGridViewDefaultCellSize];
     [self setLongPressOptions:(NRGridViewLongPressUnhighlightUponScroll|NRGridViewLongPressUnhighlightUponAnotherTouch)];
@@ -279,14 +285,6 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     [_tapGestureRecognizer setNumberOfTouchesRequired:1];
     [_tapGestureRecognizer setDelegate:self];
     [self addGestureRecognizer:_tapGestureRecognizer];
-    
-    
-    // Long press gesture recognizer
-    _longPressGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(__handleLongPressGestureRecognizer:)];
-    [_longPressGestureRecognizer setDelegate:self];
-    [_longPressGestureRecognizer setNumberOfTapsRequired:0];
-    [_longPressGestureRecognizer setNumberOfTouchesRequired:1];
-    [self addGestureRecognizer:_longPressGestureRecognizer];
 }
 
 - (id)initWithLayoutStyle:(NRGridViewLayoutStyle)layoutStyle
@@ -329,7 +327,7 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 
 - (NSArray*)indexPathsForVisibleCells
 {
-    return [[_visibleCellsSet allObjects] valueForKeyPath:@"@unionOfObjects.__indexPath"];
+    return [[self visibleCells] valueForKeyPath:@"@unionOfObjects.indexPath"];
 }
 
 - (NRGridViewCell*)cellAtIndexPath:(NSIndexPath*)indexPath
@@ -351,59 +349,13 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     return [_longPressuredCell __indexPath];
 }
 
-- (NSIndexPath*)selectedCellIndexPath { return [self indexPathForSelectedCell]; } /** Deprecated */
-
-- (NSIndexPath*)indexPathForSelectedCell { return [_selectedCellsIndexPaths lastObject]; }
-- (NSArray*)indexPathsForSelectedCells { return [NSArray arrayWithArray:_selectedCellsIndexPaths]; }
-
 #pragma mark - Setters
-
 
 - (void)setFrame:(CGRect)frame
 {
     [super setFrame:frame];
     [self __reloadContentSize];
     [self setNeedsLayout];
-}
-
-- (void)setDelegate:(id<NRGridViewDelegate>)delegate
-{
-    [super setDelegate:delegate];
-    
-    _gridViewDelegateRespondsTo.willDisplayCell = [delegate respondsToSelector:@selector(gridView:willDisplayCell:atIndexPath:)];
-    _gridViewDelegateRespondsTo.willSelectCell = [delegate respondsToSelector:@selector(gridView:willSelectCellAtIndexPath:)];
-    _gridViewDelegateRespondsTo.didSelectCell = [delegate respondsToSelector:@selector(gridView:didSelectCellAtIndexPath:)];
-    _gridViewDelegateRespondsTo.didLongPressCell = [delegate respondsToSelector:@selector(gridView:didLongPressCellAtIndexPath:)];
-    
-    _gridViewDelegateRespondsTo.didSelectHeader = [delegate respondsToSelector:@selector(gridView:didSelectHeaderForSection:)];
-
-}
-
-- (void)setDataSource:(id<NRGridViewDataSource>)dataSource
-{
-    if(_dataSource != dataSource)
-    {
-        [self willChangeValueForKey:@"dataSource"];
-        _dataSource = dataSource;
-        
-        _gridViewDataSourceRespondsTo.numberOfSections = [dataSource respondsToSelector:@selector(numberOfSectionsInGridView:)];
-        
-        _gridViewDataSourceRespondsTo.titleForHeader = [dataSource respondsToSelector:@selector(gridView:titleForHeaderInSection:)];
-        _gridViewDataSourceRespondsTo.viewForHeader = [dataSource respondsToSelector:@selector(gridView:viewForHeaderInSection:)];
-        _gridViewDataSourceRespondsTo.heightForHeader = [dataSource respondsToSelector:@selector(gridView:heightForHeaderInSection:)];
-        _gridViewDataSourceRespondsTo.widthForHeader = [dataSource respondsToSelector:@selector(gridView:heightForHeaderInSection:)];
-
-        _gridViewDataSourceRespondsTo.titleForFooter = [dataSource respondsToSelector:@selector(gridView:titleForFooterInSection:)];
-        _gridViewDataSourceRespondsTo.viewForFooter = [dataSource respondsToSelector:@selector(gridView:viewForFooterInSection:)];
-        _gridViewDataSourceRespondsTo.heightForFooter = [dataSource respondsToSelector:@selector(gridView:heightForFooterInSection:)];
-        _gridViewDataSourceRespondsTo.widthForFooter = [dataSource respondsToSelector:@selector(gridView:widthForFooterInSection:)];
-
-        _gridViewDataSourceRespondsTo.hasTranslucentNavigationBar = ([[self dataSource] isKindOfClass:[UIViewController class]] 
-                                                                     && [[(UIViewController*)[self dataSource] parentViewController] isKindOfClass:[UINavigationController class]]
-                                                                     && [[(UINavigationController*)[(UIViewController*)[self dataSource] parentViewController] navigationBar] isTranslucent]);
-
-        [self didChangeValueForKey:@"dataSource"];
-    }
 }
 
 - (void)setCellSize:(CGSize)cellSize
@@ -413,30 +365,15 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
         [self willChangeValueForKey:@"cellSize"];
         _cellSize = cellSize;
         
-        [self __reloadContentSize];
+        [self __reloadContentSize];//TODO (jiaji)find root cause for contentSize incorrectly when self.bounds is empty
         [self setNeedsLayout];
         [self didChangeValueForKey:@"cellSize"];
     }
 }
 
-- (void)setSelectedCellIndexPath:(NSIndexPath *)selectedCellIndexPath /** Deprecated */
+- (void)setSelectedCellIndexPath:(NSIndexPath *)selectedCellIndexPath
 {
     [self selectCellAtIndexPath:selectedCellIndexPath animated:NO];
-}
-
-- (void)setAllowsMultipleSelections:(BOOL)allowsMultipleSelections
-{
-    if(_allowsMultipleSelections != allowsMultipleSelections)
-    {
-        [self willChangeValueForKey:@"allowsMultipleSelections"];
-        
-        _allowsMultipleSelections = allowsMultipleSelections;
-        
-        if([_selectedCellsIndexPaths count]>0 && allowsMultipleSelections == NO)
-            [self deselectCellsAtIndexPaths:[self indexPathsForSelectedCells] animated:YES];
-        
-        [self didChangeValueForKey:@"allowsMultipleSelections"];
-    }
 }
 
 - (void)setLayoutStyle:(NRGridViewLayoutStyle)layoutStyle
@@ -459,6 +396,31 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     }
 }
 
+- (void)setDelegate:(id<NRGridViewDelegate>)aDelegate
+{
+    if(delegate != aDelegate)
+    {
+        [self willChangeValueForKey:@"delegate"];
+        [self removeGestureRecognizer:_longPressGestureRecognizer];
+        [_longPressGestureRecognizer release], _longPressGestureRecognizer=nil;
+        
+        [super setDelegate:aDelegate];
+        delegate = aDelegate;
+        
+        if([aDelegate respondsToSelector:@selector(NRGridView:didLongPressCellAtIndexPath:)])
+        {
+            _longPressGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(__handleLongPressGestureRecognizer:)];
+            [_longPressGestureRecognizer setDelegate:self];
+            [_longPressGestureRecognizer setNumberOfTapsRequired:0];
+            [_longPressGestureRecognizer setNumberOfTouchesRequired:1];
+            
+            [self addGestureRecognizer:_longPressGestureRecognizer];
+        }
+        [self didChangeValueForKey:@"delegate"];
+    }
+    
+    
+}
 
 #pragma mark - Private Methods
 
@@ -486,10 +448,10 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 
 - (BOOL)__hasHeaderInSection:(NSInteger)sectionIndex
 {
-    return ( (_gridViewDataSourceRespondsTo.titleForHeader && [[self dataSource] gridView:self 
-                                                                  titleForHeaderInSection:sectionIndex] !=nil)
-            || (_gridViewDataSourceRespondsTo.viewForHeader && [[self dataSource] gridView:self 
-                                                                    viewForHeaderInSection:sectionIndex] !=nil) );
+    return ( ([[self dataSource] respondsToSelector:@selector(NRGridView:titleForHeaderInSection:)] && [[self dataSource] NRGridView:self 
+                                                                                                         titleForHeaderInSection:sectionIndex] !=nil)
+            || ([[self dataSource] respondsToSelector:@selector(NRGridView:viewForHeaderInSection:)] && [[self dataSource] NRGridView:self 
+                                                                                                           viewForHeaderInSection:sectionIndex] !=nil) );
 }
 
 
@@ -506,8 +468,8 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
                            : CGRectGetWidth([self bounds]));
     
     if([self layoutStyle] == NRGridViewLayoutStyleHorizontal
-       && _gridViewDataSourceRespondsTo.widthForHeader)
-        headerWidth = [[self dataSource] gridView:self 
+       && [[self dataSource] respondsToSelector:@selector(NRGridView:widthForHeaderInSection:)])
+        headerWidth = [[self dataSource] NRGridView:self 
                           widthForHeaderInSection:sectionIndex];
     
     return headerWidth;
@@ -526,8 +488,8 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
                             : CGRectGetHeight([self bounds]));
     
     if([self layoutStyle] == NRGridViewLayoutStyleVertical
-       && _gridViewDataSourceRespondsTo.heightForHeader)
-        headerHeight = [[self dataSource] gridView:self 
+       && [[self dataSource] respondsToSelector:@selector(NRGridView:heightForHeaderInSection:)])
+        headerHeight = [[self dataSource] NRGridView:self 
                           heightForHeaderInSection:sectionIndex];
     
     return headerHeight;
@@ -540,7 +502,7 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
                      usingLayoutStyle:(NRGridViewLayoutStyle)layoutStyle
 {
     return (layoutStyle == NRGridViewLayoutStyleHorizontal
-            ? ceil((CGFloat)[[self dataSource] gridView:self 
+            ? ceil((CGFloat)[[self dataSource] NRGridView:self 
                                  numberOfItemsInSection:section] / (CGFloat)[self __numberOfCellsPerColumnUsingSize:cellSize 
                                                                                                         layoutStyle:layoutStyle]) * cellSize.width
             : CGRectGetWidth([self bounds]));
@@ -552,7 +514,7 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
                       usingLayoutStyle:(NRGridViewLayoutStyle)layoutStyle
 {
     return (layoutStyle == NRGridViewLayoutStyleVertical
-            ? ceil((CGFloat)[[self dataSource] gridView:self 
+            ? ceil((CGFloat)[[self dataSource] NRGridView:self 
                                  numberOfItemsInSection:section] / (CGFloat)[self __numberOfCellsPerLineUsingSize:cellSize 
                                                                                                       layoutStyle:layoutStyle]) * cellSize.height 
             : CGRectGetHeight([self bounds]));
@@ -561,10 +523,10 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 
 - (BOOL)__hasFooterInSection:(NSInteger)sectionIndex
 {
-    return ( (_gridViewDataSourceRespondsTo.titleForFooter && [[self dataSource] gridView:self 
-                                                                  titleForFooterInSection:sectionIndex] !=nil)
-            || (_gridViewDataSourceRespondsTo.viewForFooter && [[self dataSource] gridView:self 
-                                                                    viewForFooterInSection:sectionIndex] !=nil) );
+    return ( ([[self dataSource] respondsToSelector:@selector(NRGridView:titleForFooterInSection:)] && [[self dataSource] NRGridView:self 
+                                                                                                         titleForFooterInSection:sectionIndex] !=nil)
+            || ([[self dataSource] respondsToSelector:@selector(NRGridView:viewForFooterInSection:)] && [[self dataSource] NRGridView:self 
+                                                                                                           viewForFooterInSection:sectionIndex] !=nil) );
 }
 
 - (CGFloat)__widthForFooterAtSectionIndex:(NSInteger)sectionIndex
@@ -580,8 +542,8 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
                            : CGRectGetWidth([self bounds]));
     
     if([self layoutStyle] == NRGridViewLayoutStyleHorizontal
-       && _gridViewDataSourceRespondsTo.widthForFooter)
-        footerWidth = [[self dataSource] gridView:self 
+       && [[self dataSource] respondsToSelector:@selector(NRGridView:widthForFooterInSection:)])
+        footerWidth = [[self dataSource] NRGridView:self 
                           widthForFooterInSection:sectionIndex];
     
     return footerWidth;
@@ -600,8 +562,8 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
                             : CGRectGetHeight([self bounds]));
     
     if([self layoutStyle] == NRGridViewLayoutStyleVertical
-       && _gridViewDataSourceRespondsTo.heightForFooter)
-        footerHeight = [[self dataSource] gridView:self 
+       && [[self dataSource] respondsToSelector:@selector(NRGridView:heightForFooterInSection:)])
+        footerHeight = [[self dataSource] NRGridView:self 
                           heightForFooterInSection:sectionIndex];
     
     return footerHeight;
@@ -647,14 +609,9 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     NRGridViewSectionLayout *sectionLayout = [self __sectionLayoutAtIndex:section];
     CGRect sectionHeaderFrame =  [sectionLayout headerFrame];
     
-    CGPoint headerOffset = CGPointZero;
-    
-    if(_gridViewDataSourceRespondsTo.hasTranslucentNavigationBar)
-        headerOffset.y = CGRectGetHeight([[(UINavigationController*)[(UIViewController*)[self dataSource] parentViewController] navigationBar] frame]);
-    
     if(layoutStyle == NRGridViewLayoutStyleVertical){
-        if(CGRectGetMinY(sectionHeaderFrame) < ([self contentOffset].y + headerOffset.y))
-            sectionHeaderFrame.origin.y = ([self contentOffset].y + headerOffset.y);
+        if(CGRectGetMinY(sectionHeaderFrame) < [self contentOffset].y)
+            sectionHeaderFrame.origin.y = [self contentOffset].y;
         if(CGRectGetMaxY(sectionHeaderFrame) > CGRectGetMaxY([sectionLayout contentFrame]))
             sectionHeaderFrame.origin.y = CGRectGetMaxY([sectionLayout contentFrame]) - CGRectGetHeight(sectionHeaderFrame) ;
         
@@ -696,15 +653,15 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     
     if(header == nil){
         // header needs to be created...
-        if(_gridViewDataSourceRespondsTo.viewForHeader)
+        if([[self dataSource] respondsToSelector:@selector(NRGridView:viewForHeaderInSection:)])
         {
-            header = [[[self dataSource] gridView:self 
+            header = [[[self dataSource] NRGridView:self 
                            viewForHeaderInSection:section] retain];
         }
-        else if(_gridViewDataSourceRespondsTo.titleForHeader)
+        else if([[self dataSource] respondsToSelector:@selector(NRGridView:titleForHeaderInSection:)])
         {
             header = [[NRGridViewHeader alloc] initWithFrame:CGRectZero];
-            [[(NRGridViewHeader*)header titleLabel] setText:[[self dataSource] gridView:self
+            [[(NRGridViewHeader*)header titleLabel] setText:[[self dataSource] NRGridView:self
                                                                 titleForHeaderInSection:section]];
         }
         
@@ -752,15 +709,15 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     
     if(footer == nil){
         // header needs to be created...
-        if(_gridViewDataSourceRespondsTo.viewForFooter)
+        if([[self dataSource] respondsToSelector:@selector(NRGridView:viewForFooterInSection:)])
         {
-            footer = [[[self dataSource] gridView:self 
+            footer = [[[self dataSource] NRGridView:self 
                            viewForFooterInSection:section] retain];
         }
-        else if(_gridViewDataSourceRespondsTo.titleForFooter)
+        else if([[self dataSource] respondsToSelector:@selector(NRGridView:titleForFooterInSection:)])
         {
             footer = [[NRGridViewHeader alloc] initWithFrame:CGRectZero];
-            [[(NRGridViewHeader*)footer titleLabel] setText:[[self dataSource] gridView:self
+            [[(NRGridViewHeader*)footer titleLabel] setText:[[self dataSource] NRGridView:self
                                                                 titleForFooterInSection:section]];
         }
         
@@ -829,14 +786,17 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     [cellsSet makeObjectsPerformSelector:@selector(__setIndexPath:) withObject:nil];
     [cellsSet makeObjectsPerformSelector:@selector(removeFromSuperview)];
 
-    [_reusableCellsSet unionSet:cellsSet];
+    // TODO:(jhuang) Enable reuse.
+    //[_reusableCellsSet unionSet:cellsSet];
     [_visibleCellsSet minusSet:cellsSet];
 }
 - (void)__throwCellInReusableQueue:(NRGridViewCell*)cell
 {
     [cell __setIndexPath:nil];
     [cell removeFromSuperview];
-    [_reusableCellsSet addObject:cell];
+    
+    // TODO:(jhuang) Enable reuse.
+    //[_reusableCellsSet addObject:cell];
     [_visibleCellsSet removeObject:cell];
 }
 
@@ -846,19 +806,6 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     NRGridViewCell* dequeuedCell = nil;
     
     if(identifier != nil){
-        NSArray *dequeuableCells = [_reusableCellsSet allObjects];
-        NSArray *dequeuableIdentifiers = [dequeuableCells valueForKeyPath:@"@unionOfObjects.reuseIdentifier"];
-        NSInteger indexOfIdentifier = [dequeuableIdentifiers indexOfObject:identifier];
-        
-        if(indexOfIdentifier != NSNotFound)
-        {
-            dequeuedCell = [[dequeuableCells objectAtIndex:indexOfIdentifier] retain];
-            [dequeuedCell prepareForReuse];
-            [_reusableCellsSet removeObject:dequeuedCell];
-        }
-        
-        /** I have commented the follow shorter way to find out a reusable cell because predicates are OVERSLOW.
-         *
         NSPredicate *dequeueablePredicate = [NSPredicate predicateWithFormat:@"reuseIdentifier isEqualToString: %@",identifier];
         NSSet *dequeuableSet = [_reusableCellsSet filteredSetUsingPredicate:dequeueablePredicate];
         
@@ -867,7 +814,6 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
             [_reusableCellsSet removeObject:dequeuedCell];
             [dequeuedCell prepareForReuse];
         }
-         */
     }
         
     return [dequeuedCell autorelease];
@@ -962,8 +908,6 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     
     if([self layoutStyle] == NRGridViewLayoutStyleVertical)
     {
-        contentOffsetForItem.x = [self contentOffset].x;
-        
         if(scrollPosition == NRGridViewScrollPositionNone){
             if(CGRectGetMaxY(itemRect) > CGRectGetMaxY([self bounds]))
                 scrollPosition = NRGridViewScrollPositionAtBottom;
@@ -994,8 +938,6 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
         
     }else if([self layoutStyle] == NRGridViewLayoutStyleHorizontal)
     {
-        contentOffsetForItem.y = [self contentOffset].y;
-
         if(scrollPosition == NRGridViewScrollPositionNone){
             if(CGRectGetMaxX(itemRect) > CGRectGetMaxX([self bounds]))
                 scrollPosition = NRGridViewScrollPositionAtRight;
@@ -1036,13 +978,13 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     _sectionLayouts = [[NSMutableArray alloc] init];
     
     CGSize contentSize = CGSizeZero;
-    NSInteger numberOfSections  = (_gridViewDataSourceRespondsTo.numberOfSections
-                                   ? [[self dataSource] numberOfSectionsInGridView:self]
+    NSInteger numberOfSections  = ([[self dataSource] respondsToSelector:@selector(numberOfSectionsInNRGridView:)]
+                                   ? [[self dataSource] numberOfSectionsInNRGridView:self]
                                    : 1);
     
     for(NSInteger sectionIndex = 0; sectionIndex < numberOfSections; sectionIndex++)
     {        
-        NSInteger numberOfCellsInSection = [[self dataSource] gridView:self 
+        NSInteger numberOfCellsInSection = [[self dataSource] NRGridView:self 
                                                 numberOfItemsInSection:sectionIndex];
 
         NRGridViewSectionLayout *sectionLayout = [[NRGridViewSectionLayout alloc] init];
@@ -1065,6 +1007,7 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
             CGFloat contentHeightInSection = [self __heightForContentInSection:sectionIndex 
                                                                    forCellSize:[self cellSize] 
                                                               usingLayoutStyle:[self layoutStyle]];
+//            DebugLog(@"%d %d", (int)(self.cellSize.width), (int)(self.cellSize.height));
                         
             [sectionLayout setHeaderFrame:CGRectMake(0, 
                                                      contentSize.height, 
@@ -1072,7 +1015,7 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
                                                      sectionHeaderSize.height)];
             [sectionLayout setContentFrame:CGRectMake(0, 
                                                       CGRectGetMaxY([sectionLayout headerFrame]), 
-                                                      CGRectGetWidth([self bounds]), 
+                                                      sectionHeaderSize.width, 
                                                       contentHeightInSection)];
             [sectionLayout setFooterFrame:CGRectMake(0, 
                                                      CGRectGetMaxY([sectionLayout contentFrame]), 
@@ -1095,7 +1038,7 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
             [sectionLayout setContentFrame:CGRectMake(CGRectGetMaxX([sectionLayout headerFrame]), 
                                                       0, 
                                                       contentWidthInSection, 
-                                                      CGRectGetHeight([self bounds]))];
+                                                      sectionHeaderSize.height)];
             [sectionLayout setFooterFrame:CGRectMake(CGRectGetMaxX([sectionLayout contentFrame]), 
                                                      0, 
                                                      sectionFooterSize.width, 
@@ -1113,18 +1056,10 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 
 - (void)reloadData
 {
-    _gridViewDataSourceRespondsTo.hasTranslucentNavigationBar = ([[self dataSource] isKindOfClass:[UIViewController class]] 
-                                                                 && [[(UIViewController*)[self dataSource] parentViewController] isKindOfClass:[UINavigationController class]]
-                                                                 && [[(UINavigationController*)[(UIViewController*)[self dataSource] parentViewController] navigationBar] isTranslucent]);
-    
-
-    
     [self __reloadContentSize];
     
     [self __throwCellsInReusableQueue:_visibleCellsSet];
-    [_selectedCellsIndexPaths release], _selectedCellsIndexPaths = [[NSMutableArray alloc] init];
-    
-    [[self longPressGestureRecognizer] setEnabled:_gridViewDelegateRespondsTo.didLongPressCell];
+    [self setSelectedCellIndexPath:nil];
     
     [self setNeedsLayout];
 }
@@ -1141,13 +1076,19 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 }
 
 - (void)__layoutCellsWithLayoutStyle:(NRGridViewLayoutStyle)layoutStyle
-       alreadyVisibleCellsIndexPaths:(NSArray*)alreadyVisibleCellsIndexPaths
+              visibleCellsIndexPaths:(NSArray*)visibleCellsIndexPaths
 {
     UIImageView *verticalScrollIndicator = nil, *horizontalScrollIndicator = nil;
-    object_getInstanceVariable(self, "_verticalScrollIndicator", (void*)&verticalScrollIndicator);
-    object_getInstanceVariable(self, "_horizontalScrollIndicator", (void*)&horizontalScrollIndicator);
-
     
+    const char* verticalName = [[NSString stringWithFormat:@"%@%@", @"_vertical", @"ScrollIndicator"] cStringUsingEncoding:NSUTF8StringEncoding];
+    object_getInstanceVariable(self, verticalName, (void*)&verticalScrollIndicator);
+    
+    const char* horizontalName = [[NSString stringWithFormat:@"%@%@", @"_horizontal", @"ScrollIndicator"] cStringUsingEncoding:NSUTF8StringEncoding];
+    object_getInstanceVariable(self, horizontalName, (void*)&horizontalScrollIndicator);
+    
+    // better than calling -respondsToSelector: each time.
+    BOOL informDelegateBeforeDisplayingCell = [[self delegate] respondsToSelector:@selector(NRGridView:willDisplayCell:atIndexPath:)]; 
+   
     NSArray *visibleSections = [self __sectionsInRect:[self bounds]];
     
     // sections layout that won't be visible
@@ -1175,9 +1116,11 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 
         
         // enumerate all cells visible cells for sectionIndex.
-        @autoreleasepool {
+//        @autoreleasepool 
+        NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+        {
             
-            NSInteger numberOfCellsInSection = [[self dataSource] gridView:self 
+            NSInteger numberOfCellsInSection = [[self dataSource] NRGridView:self 
                                                     numberOfItemsInSection:sectionIndex];
             NSInteger firstVisibleCellIndex=0;
             NSInteger cellIndexesRange=0;
@@ -1217,37 +1160,153 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
             
             
             NSMutableIndexSet *sectionVisibleContentIndexes = [NSMutableIndexSet indexSetWithIndexesInRange:NSMakeRange(firstVisibleCellIndex, cellIndexesRange)];
-
-
+            
+            if([visibleCellsIndexPaths count]>0){
+                NSArray* visibleIndexPathsForSection = [visibleCellsIndexPaths filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"section == %i",sectionIndex]];
+                if([visibleIndexPathsForSection count]>0){
+                    NSArray* visibleIndexesForSection = [visibleIndexPathsForSection valueForKeyPath:@"@unionOfObjects.row"];
+                    NSInteger minVisibleIndexForSection = [[visibleIndexesForSection valueForKeyPath:@"@min.integerValue"] integerValue];                        
+                    [sectionVisibleContentIndexes removeIndexesInRange:NSMakeRange(minVisibleIndexForSection, [visibleIndexesForSection count])];
+                }
+            }
+            
             [sectionVisibleContentIndexes enumerateIndexesUsingBlock:^(NSUInteger cellIndexInSection, BOOL *stop)
              {
                  NSIndexPath *cellIndexPath = [NSIndexPath indexPathForItemIndex:cellIndexInSection 
-                                                                       inSection:sectionIndex];    
+                                                                       inSection:sectionIndex];                         
+                 // insert cell.
+                 NRGridViewCell *cell = [[self dataSource] NRGridView:self 
+                                             cellForItemAtIndexPath:cellIndexPath];
+                 [cell __setIndexPath:cellIndexPath];
+                 [cell setFrame:[self __rectForCellAtIndexPath:cellIndexPath 
+                                              usingLayoutStyle:layoutStyle]];                         
+                 if([self selectedCellIndexPath])
+                     [cell setSelected:[cellIndexPath isEqual:[self selectedCellIndexPath]]];
                  
-                 if([alreadyVisibleCellsIndexPaths containsObject:cellIndexPath] == NO)
+                 if(informDelegateBeforeDisplayingCell)
+                     [[self delegate] NRGridView:self 
+                               willDisplayCell:cell 
+                                   atIndexPath:cellIndexPath];
+                 
+                 [self insertSubview:cell atIndex:0];
+                 
+                 if (layoutStyle == NRGridViewLayoutStyleVertical)
                  {
-                     // insert cell.
-                     NRGridViewCell *cell = [[self dataSource] gridView:self 
-                                                 cellForItemAtIndexPath:cellIndexPath];
-                     [cell __setIndexPath:cellIndexPath];
-                     [cell setFrame:[self __rectForCellAtIndexPath:cellIndexPath 
-                                                  usingLayoutStyle:layoutStyle]];                         
-                     [cell setSelected:[_selectedCellsIndexPaths containsObject:cellIndexPath]];
+                     if ([[self dataSource] respondsToSelector:@selector(NRGridView:verticalSeperatorForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self verticalSeperatorForItemAtIndexPath:cellIndexPath] &&
+                         [[self dataSource] respondsToSelector:@selector(NRGridView:verticalSeperatorHeightForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self verticalSeperatorHeightForItemAtIndexPath:cellIndexPath] &&
+                         [[self dataSource] respondsToSelector:@selector(NRGridView:verticalSeperatorWidthForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self verticalSeperatorWidthForItemAtIndexPath:cellIndexPath])
+                     {
+                         BOOL hasLastVerticalSeperator = NO;//have last have full
+                         if ([[self dataSource] respondsToSelector:@selector(NRGridView:hasLastVerticalSeperatorInSection:)])
+                         {
+                             hasLastVerticalSeperator = [[self dataSource] NRGridView:self hasLastVerticalSeperatorInSection:sectionIndex];
+                         }
+                         
+                         NSInteger numberOfCellsPerLine = [self __numberOfCellsPerLineUsingSize:cell.frame.size layoutStyle:NRGridViewLayoutStyleVertical];
+                         if (hasLastVerticalSeperator || ((cellIndexPath.row + 1) % numberOfCellsPerLine))
+                         {
+                             UIView *verticalSeperatorView = [[self dataSource] NRGridView:self verticalSeperatorForItemAtIndexPath:cellIndexPath];
+                             CGFloat verticalSepertorViewHeight = [[self dataSource] NRGridView:self verticalSeperatorHeightForItemAtIndexPath:cellIndexPath];
+                             CGFloat verticalSepertorViewWidth = [[self dataSource] NRGridView:self verticalSeperatorWidthForItemAtIndexPath:cellIndexPath];
+                             verticalSeperatorView.frame = CGRectMake(cell.frame.size.width - verticalSepertorViewWidth, (cell.frame.size.height - verticalSepertorViewHeight) / 2, verticalSepertorViewWidth, verticalSepertorViewHeight);
+                             [cell addSubview:verticalSeperatorView];
+                         }
+                     }
                      
-                     if(_gridViewDelegateRespondsTo.willDisplayCell)
-                         [[self delegate] gridView:self 
-                                   willDisplayCell:cell 
-                                       atIndexPath:cellIndexPath];
-                     
-                     [self insertSubview:cell atIndex:0];
-                     [_visibleCellsSet addObject:cell];
-                     
+                     if ([[self dataSource] respondsToSelector:@selector(NRGridView:horizontalSeperatorForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self horizontalSeperatorForItemAtIndexPath:cellIndexPath] &&
+                         [[self dataSource] respondsToSelector:@selector(NRGridView:horizontalSeperatorWidthForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self horizontalSeperatorWidthForItemAtIndexPath:cellIndexPath] &&
+                         [[self dataSource] respondsToSelector:@selector(NRGridView:horizontalSeperatorHeightForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self horizontalSeperatorHeightForItemAtIndexPath:cellIndexPath])
+                     {
+                         BOOL hasLastHorizontalSeperator = NO;//have last have full
+                         if ([[self dataSource] respondsToSelector:@selector(NRGridView:hasLastHorizontalSeperatorInSection:)])
+                         {
+                             hasLastHorizontalSeperator = [[self dataSource] NRGridView:self hasLastHorizontalSeperatorInSection:sectionIndex];
+                         }
+                         
+                         NSInteger numberOfCellsPerLine = [self __numberOfCellsPerLineUsingSize:cell.frame.size layoutStyle:NRGridViewLayoutStyleVertical];
+                         NSInteger lineCount = numberOfCellsInSection / numberOfCellsPerLine + (numberOfCellsInSection % numberOfCellsPerLine? 1: 0);
+                         NSInteger currentLineCount = (cellIndexPath.row + 1) / numberOfCellsPerLine + ((cellIndexPath.row + 1) % numberOfCellsPerLine? 1: 0);
+                         
+                         if (hasLastHorizontalSeperator || (currentLineCount < lineCount))
+                         {
+                             UIView *horizontalSeperatorView = [[self dataSource] NRGridView:self horizontalSeperatorForItemAtIndexPath:cellIndexPath];
+                             CGFloat horizontalSepeartorViewWidth = [[self dataSource] NRGridView:self horizontalSeperatorWidthForItemAtIndexPath:cellIndexPath];
+                             CGFloat horizontalSeperatorViewHeight = [[self dataSource] NRGridView:self horizontalSeperatorHeightForItemAtIndexPath:cellIndexPath];
+                             horizontalSeperatorView.frame = CGRectMake((cell.frame.size.width - horizontalSepeartorViewWidth) / 2, cell.frame.size.height - horizontalSeperatorViewHeight, horizontalSepeartorViewWidth, horizontalSeperatorViewHeight);
+                             [cell addSubview:horizontalSeperatorView];
+                         }
+                     }
                  }
+                 else if (layoutStyle == NRGridViewLayoutStyleHorizontal)
+                 {
+                     if ([[self dataSource] respondsToSelector:@selector(NRGridView:verticalSeperatorForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self verticalSeperatorForItemAtIndexPath:cellIndexPath] &&
+                         [[self dataSource] respondsToSelector:@selector(NRGridView:verticalSeperatorHeightForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self verticalSeperatorHeightForItemAtIndexPath:cellIndexPath] &&
+                         [[self dataSource] respondsToSelector:@selector(NRGridView:verticalSeperatorWidthForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self verticalSeperatorWidthForItemAtIndexPath:cellIndexPath])
+                     {
+                         BOOL hasLastVerticalSeperator = NO;
+                         if ([[self dataSource] respondsToSelector:@selector(NRGridView:hasLastVerticalSeperatorInSection:)])
+                         {
+                             hasLastVerticalSeperator = [[self dataSource] NRGridView:self hasLastVerticalSeperatorInSection:sectionIndex];
+                         }
+                         
+                         NSInteger numberOfCellsPerColumn = [self __numberOfCellsPerColumnUsingSize:cell.frame.size layoutStyle:NRGridViewLayoutStyleHorizontal];
+                         NSInteger columnCount = numberOfCellsInSection / numberOfCellsPerColumn + (numberOfCellsInSection%numberOfCellsPerColumn? 1: 0);
+                         NSInteger currentColumnCount = (cellIndexPath.row + 1) / numberOfCellsPerColumn + ((cellIndexPath.row + 1) % numberOfCellsPerColumn? 1: 0);
+                         
+                         if (hasLastVerticalSeperator || (currentColumnCount < columnCount))
+                         {
+                             UIView *verticalSeperatorView = [[self dataSource] NRGridView:self verticalSeperatorForItemAtIndexPath:cellIndexPath];
+                             CGFloat verticalSepertorViewHeight = [[self dataSource] NRGridView:self verticalSeperatorHeightForItemAtIndexPath:cellIndexPath];
+                             CGFloat verticalSepertorViewWidth = [[self dataSource] NRGridView:self verticalSeperatorWidthForItemAtIndexPath:cellIndexPath];
+                             verticalSeperatorView.frame = CGRectMake(cell.frame.size.width -verticalSepertorViewWidth, (cell.frame.size.height - verticalSepertorViewHeight) / 2, verticalSepertorViewWidth, verticalSepertorViewHeight);
+                             [cell addSubview:verticalSeperatorView];
+                         }
+                     }
+                     
+                     if ([[self dataSource] respondsToSelector:@selector(NRGridView:horizontalSeperatorForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self horizontalSeperatorForItemAtIndexPath:cellIndexPath] &&
+                         [[self dataSource] respondsToSelector:@selector(NRGridView:horizontalSeperatorWidthForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self horizontalSeperatorWidthForItemAtIndexPath:cellIndexPath] &&
+                         [[self dataSource] respondsToSelector:@selector(NRGridView:horizontalSeperatorHeightForItemAtIndexPath:)] &&
+                         [[self dataSource] NRGridView:self horizontalSeperatorHeightForItemAtIndexPath:cellIndexPath])
+                     {
+                         BOOL hasLastHorizontalSeperator = NO;//have last have full
+                         if ([[self dataSource] respondsToSelector:@selector(NRGridView:hasLastHorizontalSeperatorInSection:)])
+                         {
+                             hasLastHorizontalSeperator = [[self dataSource] NRGridView:self hasLastHorizontalSeperatorInSection:sectionIndex];
+                         }
+                         
+                         NSInteger numberOfCellsPerColumn = [self __numberOfCellsPerColumnUsingSize:cell.frame.size layoutStyle:NRGridViewLayoutStyleHorizontal];
+                         if (hasLastHorizontalSeperator || ((cellIndexPath.row + 1) % numberOfCellsPerColumn))
+                         {
+                             UIView *horizontalSeperatorView = [[self dataSource] NRGridView:self horizontalSeperatorForItemAtIndexPath:cellIndexPath];
+                             CGFloat horizontalSepeartorViewWidth = [[self dataSource] NRGridView:self horizontalSeperatorWidthForItemAtIndexPath:cellIndexPath];
+                             
+                             CGFloat horizontalSeperatorViewHeight = [[self dataSource] NRGridView:self horizontalSeperatorHeightForItemAtIndexPath:cellIndexPath];
+                             horizontalSeperatorView.frame = CGRectMake((cell.frame.size.width - horizontalSepeartorViewWidth) / 2, cell.frame.size.height - horizontalSeperatorViewHeight, horizontalSepeartorViewWidth, horizontalSeperatorViewHeight);
+                             [cell addSubview:horizontalSeperatorView];
+                         }
+                     }
+
+                 }
+                                  
+                 [_visibleCellsSet addObject:cell];
              }];
             
+            
         }
+        [pool release];
     }
-     
+    
     [self bringSubviewToFront:verticalScrollIndicator];
     [self bringSubviewToFront:horizontalScrollIndicator];
 }   
@@ -1264,7 +1323,6 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 
     NSMutableArray *visibleCellsIndexPaths = [[NSMutableArray alloc] init];
     NSSet *visibleCellsSetCopy = [_visibleCellsSet copy];
-    
     for(NRGridViewCell* visibleCell in visibleCellsSetCopy)
     {
         [visibleCell setFrame:[self __rectForCellAtIndexPath:[visibleCell __indexPath] 
@@ -1277,23 +1335,19 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
             [visibleCellsIndexPaths addObject:[visibleCell __indexPath]]; // gather the index path of the enumerated cell if it's still visible on screen.
         }
     }
-    
     [visibleCellsSetCopy release];
     
     
     [self __layoutCellsWithLayoutStyle:[self layoutStyle]
-         alreadyVisibleCellsIndexPaths:visibleCellsIndexPaths];
+                visibleCellsIndexPaths:visibleCellsIndexPaths];
     
     [visibleCellsIndexPaths release];
+    
+//    DebugLog(@"NRGridView layout ---%d---%d-----%d-------%d------", [[self subviews] count], [_sectionLayouts count], [_visibleCellsSet count], [_reusableCellsSet count]);
 }
 
 
 #pragma mark - Handling Highlight/(De)Selection
-
-- (void)selectCellAtIndexPath:(NSIndexPath *)indexPath animated:(BOOL)animated
-{
-    [self selectCellAtIndexPath:indexPath autoScroll:NO scrollPosition:NRGridViewScrollPositionNone animated:animated];
-}
 
 
 - (void)selectCellAtIndexPath:(NSIndexPath*)indexPath 
@@ -1301,18 +1355,16 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
                scrollPosition:(NRGridViewScrollPosition)scrollPosition
                      animated:(BOOL)animated
 {
-    if([_selectedCellsIndexPaths containsObject:indexPath] == NO && indexPath)
+    if(_selectedCellIndexPath != indexPath)
     {
+        [self deselectCellAtIndexPath:_selectedCellIndexPath 
+                             animated:animated];
         
-        if([self allowsMultipleSelections] == NO)
-            [self deselectCellAtIndexPath:[self indexPathForSelectedCell] 
-                                 animated:animated];
-
+        // no release needed because -deselectCellAtIndexPath:_selectedCellIndexPath does it for us.
+        _selectedCellIndexPath = [indexPath retain];
         
-        [_selectedCellsIndexPaths addObject:indexPath];
         [[self cellAtIndexPath:indexPath] setSelected:YES animated:animated];
     }
-    
     
     if(autoScroll && indexPath)
     {
@@ -1320,31 +1372,21 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     }
 }
 
-
-
+- (void)selectCellAtIndexPath:(NSIndexPath *)indexPath animated:(BOOL)animated
+{
+    [self selectCellAtIndexPath:indexPath autoScroll:NO scrollPosition:NRGridViewScrollPositionNone animated:animated];
+}
 
 
 - (void)deselectCellAtIndexPath:(NSIndexPath*)indexPath animated:(BOOL)animated
 {
-    if(indexPath != nil)
-        [self deselectCellsAtIndexPaths:[NSArray arrayWithObject:indexPath] animated:animated];
-}
+    [[self cellAtIndexPath:indexPath] setSelected:NO animated:animated];
 
-- (void)deselectCellsAtIndexPaths:(NSArray*)indexPaths 
-                         animated:(BOOL)animated
-{
-    if([indexPaths count] == 0) return;
-    
-    for(NRGridViewCell *visibleCell in [self visibleCells])
+    if([_selectedCellIndexPath isEqual:indexPath])
     {
-        if([visibleCell isSelected] 
-           && [indexPaths containsObject:[visibleCell __indexPath]])
-        {
-            [visibleCell setSelected:NO animated:animated];
-        }
+        [_selectedCellIndexPath release];
+        _selectedCellIndexPath = nil;
     }
-    
-    [_selectedCellsIndexPaths removeObjectsInArray:indexPaths];
 }
 
 - (void)unhighlightPressuredCellAnimated:(BOOL)animated
@@ -1359,16 +1401,17 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 {
     if(tapGestureRecognizer == _tapGestureRecognizer)
     {
+        [self deselectCellAtIndexPath:_selectedCellIndexPath animated:YES];
         
         CGPoint touchLocation = [tapGestureRecognizer locationInView:self];
         
-        if(_gridViewDelegateRespondsTo.didSelectHeader){
+        if([[self delegate] respondsToSelector:@selector(NRGridView:didSelectHeaderForSection:)]){
             for(NRGridViewSectionLayout* aSectionLayout in _sectionLayouts)
             {
                 if([aSectionLayout headerView] 
                    && CGRectContainsPoint([[aSectionLayout headerView] frame], touchLocation))
                 {
-                    [[self delegate] gridView:self didSelectHeaderForSection:[aSectionLayout section]];
+                    [[self delegate] NRGridView:self didSelectHeaderForSection:[aSectionLayout section]];
                     return;
                 }
             }
@@ -1380,17 +1423,13 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
             if(CGRectContainsPoint([aCell frame], 
                                    touchLocation))
             {
-                if([self allowsMultipleSelections] == NO)
-                    [self deselectCellsAtIndexPaths:[self indexPathsForSelectedCells] animated:YES];
-
-                
-                if(_gridViewDelegateRespondsTo.willSelectCell)
-                    [[self delegate] gridView:self willSelectCellAtIndexPath:[aCell __indexPath]];
+                if([[self delegate] respondsToSelector:@selector(NRGridView:willSelectCellAtIndexPath:)])
+                    [[self delegate] NRGridView:self willSelectCellAtIndexPath:[aCell __indexPath]];
 
                 [self selectCellAtIndexPath:[aCell __indexPath] animated:YES];
                 
-                if(_gridViewDelegateRespondsTo.didSelectCell)
-                    [[self delegate] gridView:self didSelectCellAtIndexPath:[aCell __indexPath]];
+                if([[self delegate] respondsToSelector:@selector(NRGridView:didSelectCellAtIndexPath:)])
+                    [[self delegate] NRGridView:self didSelectCellAtIndexPath:[aCell __indexPath]];
                 
                 break;
             }
@@ -1419,7 +1458,7 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
                         [_longPressuredCell setHighlighted:YES animated:YES];
                     }
 
-                    [[self delegate] gridView:self didLongPressCellAtIndexPath:[aCell __indexPath]];
+                    [[self delegate] NRGridView:self didLongPressCellAtIndexPath:[aCell __indexPath]];
                     
                     break;
                 }
@@ -1482,20 +1521,16 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
 {
-    if( (gestureRecognizer == _longPressGestureRecognizer || gestureRecognizer == _tapGestureRecognizer)
-       && ([[touch view] isKindOfClass:[UIControl class]] && [[touch view] isUserInteractionEnabled]))
+    if([[touch view] isKindOfClass:[UIButton class]] 
+       && (gestureRecognizer == _longPressGestureRecognizer || gestureRecognizer == _tapGestureRecognizer))
         return NO;
-    else if(gestureRecognizer == _longPressGestureRecognizer)
-        return _gridViewDelegateRespondsTo.didLongPressCell;
-    
     return YES;
 }
-
 
 #pragma mark - Memory
 
 - (void)dealloc
-{    
+{
     [_longPressuredCell release];
     [_longPressGestureRecognizer release];
     [_sectionLayouts release];
@@ -1503,7 +1538,7 @@ static CGFloat const _kNRGridViewDefaultHeaderWidth = 30.; // layout style = hor
     [_tapGestureRecognizer release];
     [_reusableCellsSet release];
     [_visibleCellsSet release];
-    [_selectedCellsIndexPaths release];
+    [_selectedCellIndexPath release];
     [super dealloc];
 }
 

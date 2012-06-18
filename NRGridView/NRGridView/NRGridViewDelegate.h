@@ -5,7 +5,7 @@
 
 /***********************************************************************************
  *
- * Copyright (c) 2012 Louka Desroziers
+ * Copyright (c) 2012 Novedia Regions
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,15 +38,15 @@
 @protocol NRGridViewDelegate <UIScrollViewDelegate>
 
 @optional
-- (void)gridView:(NRGridView*)gridView willDisplayCell:(NRGridViewCell*)cell atIndexPath:(NSIndexPath*)indexPath;
+- (void)NRGridView:(NRGridView*)gridView willDisplayCell:(NRGridViewCell*)cell atIndexPath:(NSIndexPath*)indexPath;
 
-- (void)gridView:(NRGridView*)gridView willSelectCellAtIndexPath:(NSIndexPath*)indexPath;
-- (void)gridView:(NRGridView*)gridView didSelectCellAtIndexPath:(NSIndexPath*)indexPath;
+- (void)NRGridView:(NRGridView*)gridView willSelectCellAtIndexPath:(NSIndexPath*)indexPath;
+- (void)NRGridView:(NRGridView*)gridView didSelectCellAtIndexPath:(NSIndexPath*)indexPath;
 
-// called when a long presure occures on a cell
-- (void)gridView:(NRGridView*)gridView didLongPressCellAtIndexPath:(NSIndexPath*)indexPath; 
+// called when a long press occures on a cell. Won't be called (neither UILongPressGestureRecognizer will be instanciated) if the delegate does not implement this method
+- (void)NRGridView:(NRGridView*)gridView didLongPressCellAtIndexPath:(NSIndexPath*)indexPath; 
 
 
-- (void)gridView:(NRGridView*)gridView didSelectHeaderForSection:(NSInteger)section;
+- (void)NRGridView:(NRGridView*)gridView didSelectHeaderForSection:(NSInteger)section;
 
 @end

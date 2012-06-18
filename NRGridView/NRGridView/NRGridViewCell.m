@@ -5,7 +5,7 @@
 
 /***********************************************************************************
  *
- * Copyright (c) 2012 Louka Desroziers
+ * Copyright (c) 2012 Novedia Regions
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -150,7 +150,6 @@
     [self setHighlighted:NO];
 }
 
-
 #pragma mark - Getters
 
 - (BOOL)needsRelayout
@@ -165,11 +164,6 @@
         _imageView = [[UIImageView alloc] initWithFrame:CGRectZero];
         [_imageView setContentMode:UIViewContentModeScaleAspectFit];
         [_imageView setClipsToBounds:YES];
-        
-        [_imageView addObserver:self 
-                     forKeyPath:@"image" 
-                        options:NSKeyValueObservingOptionNew|NSKeyValueObservingOptionOld
-                        context:nil];
         
         [[self contentView] addSubview:_imageView];
     }
@@ -236,6 +230,7 @@
     if(_selectionBackgroundView != selectionBackgroundView)
     {
         [_selectionBackgroundView removeFromSuperview];
+        [_selectionBackgroundView release];
         _selectionBackgroundView = [selectionBackgroundView retain];
 
         [selectionBackgroundView setAlpha:(CGFloat)([self isSelected] || [self isHighlighted])];
@@ -324,7 +319,6 @@ static CGSize const _kNRGridViewCellLayoutSpacing = {5,5};
 {
     CGRect cellBounds = [self bounds];
     [[self selectionBackgroundView] setFrame:cellBounds];
-    [[self backgroundView] setFrame:cellBounds];
     [self sendSubviewToBack:[self selectionBackgroundView]];
     [self sendSubviewToBack:[self backgroundView]];
     
@@ -419,28 +413,11 @@ static CGSize const _kNRGridViewCellLayoutSpacing = {5,5};
     [[self detailedTextLabel] setFrame:detailedTextLabelFrame];
 }
 
-#pragma mark - KVO
-
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
-{
-    if([keyPath isEqualToString:@"image"] && object == [self imageView])
-    {
-        UIImage *old, *new;
-        old = [change objectForKey:NSKeyValueChangeOldKey];
-        new = [change objectForKey:NSKeyValueChangeNewKey];
-        
-        
-        if( ((NSNull*)old == [NSNull null] || (NSNull*)new == [NSNull null])  
-           || CGSizeEqualToSize([old size], [new size]) == NO)
-            [self setNeedsLayout];
-    }
-}
 
 #pragma mark - Memory
 
 - (void)dealloc
 {    
-    [_imageView removeObserver:self forKeyPath:@"image"];
     [_contentView release];
     [_reuseIdentifier release];
     
